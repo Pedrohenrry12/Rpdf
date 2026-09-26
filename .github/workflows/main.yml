@@ -1,0 +1,36 @@
+name: RDP
+
+on:
+  workflow_dispatch:
+
+jobs:
+  rdp:
+    runs-on: windows-latest
+    timeout-minutes: 3800
+
+    steps:
+    - name: Configure RDP
+      run: |
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
+
+    - name: Create RDP User
+      run: |
+        $username = "Skyro"
+        $password = -join ((33..126) | Get-Random -Count 16 | % {[char]$_})
+        net user $username $password /add
+        net localgroup administrators $username /add
+
+    - name: Install Tailscale
+      run: |
+        curl.exe -fsSL https://pkgs.tailscale.com/stable/tailscale-setup-1.82.0-amd64.msi -o tailscale-setup.msi
+        Start-Process msiexec.exe -Wait -ArgumentList '/i tailscale-setup.msi /quiet /norestart'
+
+    - name: Establish Tailscale Connection
+      run: |
+        & "C:\Program Files\Tailscale\tailscale-up.exe"
+        
+    - name: Verify RDP Accessibility
+      run: |
+        Write-Host "RDP Active"
